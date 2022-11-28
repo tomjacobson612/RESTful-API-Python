@@ -10,7 +10,7 @@ pw = 'REDACTED'
 db_name = 'guids'
 
 
-def connect_to_server(host_name, user_name, password, db_name):
+def connect_to_server(host_name, user_name, password, name):
     """Connects to database with specified credentials"""
 
     connection = None
@@ -20,9 +20,8 @@ def connect_to_server(host_name, user_name, password, db_name):
             host=host_name,
             user=user_name,
             passwd=password,
-            database=db_name
+            database=name
         )
-        print("Connection Successful")
 
     except Error as err:
         print(f"Error: '{err}'")
@@ -30,29 +29,29 @@ def connect_to_server(host_name, user_name, password, db_name):
     return connection
 
 
-def create_database(connection, name):
-    """Creates a database with specified name if one does not already exist."""
-
-    query = f"CREATE DATABASE {name}"
-    cursor = connection.cursor()
-    try:
-        cursor.execute(query)
-        print("Database created successfully")
-    except Error as err:
-        print(f"Error: '{err}'")
-
-
 def execute_query(connection, query):
-    """Executes specified query on connection object."""
+    """General function to execute any given database query."""
+
     cursor = connection.cursor()
+
     try:
         cursor.execute(query)
         connection.commit()
-        print("Query successful")
         return Error
     except Error as err:
         print(f"Error: '{err}'")
         return err
+
+
+def create_or_update(guid, input):
+    """Wrapper function to either create new entry or update an existing one with provided GUID."""
+
+    result = read_guid(guid)
+
+    if result is None:
+        return create(guid, input)
+    else:
+        return update_guid_metadata(guid, input)
 
 
 def create(guid, input):
@@ -71,7 +70,7 @@ def create(guid, input):
 
         if not valid:
             print('Invalid GUID. Must be 32 hexadecimal characters, all uppercase.')
-            return
+            return -1
 
     if 'expiration' not in obj.keys():
         obj['expiration'] = datetime.datetime.now() + relativedelta(days=+30)
@@ -88,6 +87,7 @@ def create(guid, input):
 
 def validate_guid(guid):
     """Validate that a guid is 32 hexadecimal characters and all uppercase."""
+
     if len(guid) != 32:
         return False
     return guid.isupper()
@@ -95,6 +95,7 @@ def validate_guid(guid):
 
 def generate_guid():
     """Randomly generate a GUID if one is not provided."""
+
     random.seed()
     hex = '0123456789ABCDEF'
     guid = ''
@@ -104,35 +105,6 @@ def generate_guid():
         guid += hex[num]
 
     return guid
-
-
-def read_query(connection, query):
-    """Performs a read query on database connection object"""
-    cursor = connection.cursor()
-    try:
-        cursor.execute(query)
-        result = cursor.fetchall()
-        return result
-    except Error as err:
-        print(f"Error: '{err}'")
-
-
-def read_guid(guid):
-    """Performs a read query to search for specific guid. If successful return a json object."""
-
-    connection = connect_to_server("localhost", "root", pw, db_name)
-    query = f"""
-    SELECT * FROM guids 
-    where guid = '{guid}';
-    """
-    result = read_query(connection, query)
-
-    if result:
-        formatted = dict.fromkeys(['guid', 'expiration', 'user'])
-        formatted['guid'] = result[0][0]
-        formatted['expiration'] = result[0][1]
-        formatted['user'] = result[0][2]
-        return json.dumps(formatted)
 
 
 def update_guid_metadata(guid, input):
@@ -171,6 +143,36 @@ def update_guid_metadata(guid, input):
 
     execute_query(connection, query)
     return json.dumps(obj)
+
+
+def read_query(connection, query):
+    """Performs a read query on database connection object"""
+
+    cursor = connection.cursor()
+    try:
+        cursor.execute(query)
+        result = cursor.fetchall()
+        return result
+    except Error as err:
+        print(f"Error: '{err}'")
+
+
+def read_guid(guid):
+    """Performs a read query to search for specific guid. If successful return a json object."""
+
+    connection = connect_to_server("localhost", "root", pw, db_name)
+    query = f"""
+    SELECT * FROM guids 
+    where guid = '{guid}';
+    """
+    result = read_query(connection, query)
+
+    if result:
+        formatted = dict.fromkeys(['guid', 'expiration', 'user'])
+        formatted['guid'] = result[0][0]
+        formatted['expiration'] = result[0][1]
+        formatted['user'] = result[0][2]
+        return json.dumps(formatted)
 
 
 def delete(guid):

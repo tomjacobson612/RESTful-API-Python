@@ -5,38 +5,38 @@ from tornado.ioloop import IOLoop
 pw = 'REDACTED'
 db_name = 'guids'
 connection = db.connect_to_server("localhost", "root", pw, db_name)
-items=[]
 
 
 class Guid(RequestHandler):
     def get(self, slug):
+        """Returns metadata associated with given GUID."""
+
         result = db.read_guid(slug)
+
         if result is None:
-            self.write("Error: guid does not exist in database.")
-            self.write(f"\n Status Code: {self.get_status()}")
+            RequestHandler.set_status(self, status_code=204)
+
         else:
             self.write(result)
-            self.write(f"\n Status Code: {self.get_status()}")
 
     def post(self, slug):
-        result = db.create(slug, self.request.body)
+        """Queries database for item with given GUID. If item already exists it is updated, otherwise it is created."""
 
-        if result is None:
-            self.write("Error: Creation unsuccessful.")
-            self.write(f"\n Status Code: {self.get_status()}")
+        try:
+            result = db.create_or_update(slug, self.request.body)
 
-        else:
-            self.write(result)
-            self.write(f"\n Status Code: {self.get_status()}")
+            if result == -1:
+                RequestHandler.set_status(self, status_code=400)
 
-    def put(self, slug):
-        result = db.update_guid_metadata(slug, self.request.body)
-        self.write(result)
-        self.write(f"\n Status Code: {self.get_status()}")
+            else:
+                self.write(result)
+
+        except KeyError as e:
+            RequestHandler.set_status(self, status_code=400)
 
     def delete(self, slug):
+        """Removes item with given GUID from database."""
         db.delete(slug)
-        self.write(f"\n Status Code: {self.get_status()}")
 
 
 def make_app():
