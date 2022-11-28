@@ -1,0 +1,2 @@
+# RESTful-API-Python
+Restful API to interact with a MySQL database. CRUD functionality implemented with Tornado. This API is intended to be used with a database, for my own testing purposes I locally hosted a database. The password for that database has been replaced with 'REDACTED', if using this code you will want to create your own database and update the pw and db_name variables appropriately. API testing done with Postman.
